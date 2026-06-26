@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+from fpdf import FPDF
 
 def lead_data(filepath):
     df = pd.read_csv(filepath)
@@ -79,6 +80,58 @@ def correlation_matrix(df, output_folfer="eda_output"):
     else:
         print("Not enough numeric columns for correlation matrix.")
 
+def generate_pdf_report(df, output_folder="eda_output"):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 16)
+    pdf.cell(0, 10, "EDA Report", ln=True, align="C")
+    pdf.ln(5)
+    
+    # Dataset Overview
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 10, "1. Dataset Overview", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    pdf.cell(0, 8, f"Rows: {df.shape[0]}", ln=True)
+    pdf.cell(0, 8, f"Columns: {df.shape[1]}", ln=True)
+    pdf.ln(5)
+    
+    # Missing Values
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 10, "2. Missing Values", ln=True)
+    pdf.set_font("Helvetica", "", 10)
+    missing = df.isnull().sum()
+    missing = missing[missing > 0]
+    if len(missing) == 0:
+        pdf.cell(0, 8, "No missing values found.", ln=True)
+    else:
+        for col, count in missing.items():
+            percent = round((count / len(df)) * 100, 2)
+            pdf.cell(0, 8, f"{col}: {count} missing ({percent}%)", ln=True)
+    pdf.ln(5)
+    
+    # Distribution Charts
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 10, "3. Distribution Plots", ln=True)
+    numeric_cols = df.select_dtypes(include=[np.number]).columns
+    for col in numeric_cols:
+        img_path = f"{output_folder}/{col}_distribution.png"
+        if os.path.exists(img_path):
+            pdf.set_font("Helvetica", "B", 10)
+            pdf.cell(0, 8, col, ln=True)
+            pdf.image(img_path, w=180)
+            pdf.ln(3)
+    
+    # Correlation Matrix
+    pdf.add_page()
+    pdf.set_font("Helvetica", "B", 12)
+    pdf.cell(0, 10, "4. Correlation Matrix", ln=True)
+    corr_path = f"{output_folder}/correlation_matrix.png"
+    if os.path.exists(corr_path):
+        pdf.image(corr_path, w=180)
+    
+    pdf.output(f"{output_folder}/eda_report.pdf")
+    print(f"PDF report saved to {output_folder}/eda_report.pdf")
+    
 def run_eda(filepath):
     print(f"\Running EDA on: {filepath}\n")
     df = lead_data(filepath)
@@ -88,6 +141,7 @@ def run_eda(filepath):
     plot_distributions(df)
     correlation_matrix(df)
     print("\nDEA Complete!")
+    generate_pdf_report(df)
 
 if __name__=="__main__":
     run_eda(r"C:\AI,ML\train.csv")
