@@ -8,6 +8,8 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, accuracy_score
 import joblib
 import os
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def detect_problem_type(df, target_col):
@@ -40,7 +42,42 @@ def train_model(df, target_col, problem_type):
         score = accuracy_score(y_test, predictions)
         print(f"Accuracy: {score:.4f}")
 
-    return model     
+    return model, X_test, y_test     
+
+def evaluate_model(model, X_test, y_test, problem_type, output_folder="pipeline_output"):
+    os.makedirs(output_folder, exist_ok = True)
+    predictions = model.predict(X_test)
+
+    if problem_type == "regression":
+    
+        # Actual vs Predicted plot
+        plt.figure(figsize=(8, 6))
+        plt.scatter(y_test, predictions, alpha=0.5)
+        plt.plot([y_test.min(), y_test.max()], 
+                [y_test.min(), y_test.max()], 
+                'r--', linewidth=2)
+        plt.xlabel("Actual Values")
+        plt.ylabel("Predicted Values")
+        plt.title("Actual vs Predicted")
+        plt.tight_layout()
+        plt.savefig(f"{output_folder}/actual_vs_predicted.png")
+        plt.close()
+
+        print("Evaluation charts saved.")
+
+    else:
+        from sklearn.metrics import confusion_matrix, classification_report
+        cm = confusion_matrix(y_test, predictions)
+        plt.figure(figsize=(8, 6))
+        sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+        plt.xlabel("Predicted")
+        plt.ylabel("Actual")
+        plt.title("Confusion Matrix")
+        plt.tight_layout()
+        plt.savefig(f"{output_folder}/confusion_matrix.png")
+        plt.close()
+        print(classification_report(y_test, predictions))
+        print("Confusion matrix saved.")
 
 
 def run_pipeline(filepath, target_col):
@@ -62,9 +99,13 @@ def run_pipeline(filepath, target_col):
     
     # Step 4: Train model
     print("\nStep 3: Training model...")
-    model = train_model(df, target_col, problem_type)
-    
-    # Step 5: Save model
+    model, X_test, y_test = train_model(df, target_col, problem_type)
+
+    # Step 5: Evaluate
+    print("\nStep 4: Evaluating model...")
+    evaluate_model(model, X_test, y_test, problem_type)
+        
+    # Step 6: Save model
     os.makedirs("pipeline_output", exist_ok=True)
     joblib.dump(model, "pipeline_output/model.joblib")
     print("\nModel saved to pipeline_output/model.joblib")
